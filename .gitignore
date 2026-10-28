@@ -4,3 +4,5 @@ target
 .DS_Store
 .uml-viewer/
 uml-viewer-log.txt
+__pycache__/
+.venv/

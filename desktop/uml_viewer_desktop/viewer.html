@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UML viewer</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #f5f6f9; color: #202736; }
+    header { position: sticky; top: 0; z-index: 2; display: flex; gap: 1rem; align-items: center; padding: .75rem 1rem; background: #fff; border-bottom: 1px solid #d8dee9; }
+    header h1 { margin: 0; font-size: 1rem; } header span { font-size: .85rem; color: #566171; }
+    #status { margin-left: auto; } main { overflow: auto; height: calc(100vh - 3.5rem); }
+    svg { display: block; background: #fff; min-width: 100%; }
+    .package { fill: #f5f8fc; stroke: #a6b7c8; stroke-width: 1.5; }
+    .class { fill: white; stroke: #405b73; stroke-width: 1.5; cursor: pointer; }
+    .class:focus, .class:hover { stroke: #1c72ce; stroke-width: 3; }
+    .edge { fill: none; stroke: #718398; stroke-width: 1.5; }
+    .package-label { font-weight: 700; fill: #40546b; }
+    .name { font-weight: 700; fill: #1a2839; } .member { fill: #46566a; font-size: 12px; }
+    #detail { position: fixed; right: 1rem; bottom: 1rem; max-width: min(25rem, 75vw); padding: .75rem 1rem; background: white; border: 1px solid #a6b7c8; border-radius: .5rem; box-shadow: 0 2px 14px #0002; }
+    #detail[hidden] { display: none; } #detail p { margin: .35rem 0 0; }
+    @media (prefers-color-scheme: dark) { body { background: #171b22; color: #e7edf6; } header, #detail { background: #252c37; border-color: #526174; } header span { color: #aab8c8; } svg { background: #202630; } .package { fill: #273241; stroke: #62758a; } .class { fill: #18212c; stroke: #93a7bb; } .package-label, .name, .member { fill: #e1e9f3; } }
+  </style>
+</head>
+<body>
+<header><h1 id="title">UML viewer</h1><span>Click a class to share it with Codex</span><span id="status" role="status"></span></header>
+<main><svg id="diagram" role="group" aria-label="UML diagram"></svg></main>
+<aside id="detail" hidden><strong id="selected"></strong><p>Selected for Codex. Ask about this element in the chat.</p></aside>
+<script>
+  const svg = document.getElementById('diagram');
+  const status = document.getElementById('status');
+  const ns = 'http://www.w3.org/2000/svg';
+  let version = 0;
+  function node(tag, attrs, parent) {
+    const el = document.createElementNS(ns, tag);
+    for (const [key, value] of Object.entries(attrs)) el.setAttribute(key, String(value));
+    parent.appendChild(el); return el;
+  }
+  function text(parent, x, y, value, cls) {
+    const el = node('text', {x, y, class: cls}, parent); el.textContent = value || ''; return el;
+  }
+  async function select(kind, item) {
+    const response = await fetch(location.pathname + '/selection', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({kind, id:item.id})});
+    if (!response.ok) { status.textContent = 'Could not share selection'; return; }
+    document.getElementById('selected').textContent = item.name || item.title || item.label || item.id;
+    document.getElementById('detail').hidden = false;
+    status.textContent = 'Selection shared';
+  }
+  function render(scene) {
+    svg.replaceChildren();
+    document.getElementById('title').textContent = scene.title || 'UML viewer';
+    const size = scene.size || {w:800,h:600};
+    svg.setAttribute('viewBox', `0 0 ${Math.max(size.w, 800)} ${Math.max(size.h, 600)}`);
+    svg.setAttribute('width', Math.max(size.w, 800)); svg.setAttribute('height', Math.max(size.h, 600));
+    const defs = node('defs', {}, svg);
+    for (const [id, path, fill] of [['open','M 0 0 L 9 5 L 0 10','none'], ['triangle','M 0 0 L 9 5 L 0 10 Z','white'], ['diamond','M 0 5 L 5 0 L 10 5 L 5 10 Z','white']]) {
+      const marker = node('marker', {id, markerWidth:10, markerHeight:10, refX:9, refY:5, orient:'auto', markerUnits:'userSpaceOnUse'}, defs);
+      node('path', {d:path, fill, stroke:'#718398', 'stroke-width':1.5}, marker);
+    }
+    for (const pkg of scene.packages || []) {
+      if (!pkg.rect) continue;
+      const r = pkg.rect;
+      const group = node('g', {tabindex:0, role:'button', 'aria-label':pkg.title || pkg.label || pkg.id}, svg);
+      node('rect', {x:r.x, y:r.y, width:r.w, height:r.h, rx:6, class:'package'}, group);
+      text(group, r.x+12, r.y+22, pkg.title || pkg.label || pkg.id, 'package-label');
+      group.addEventListener('click', () => select('package', pkg));
+      group.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select('package', pkg); } });
+    }
+    for (const edge of scene.edges || []) {
+      if (edge.points && edge.points.length) {
+        const attrs = {points:edge.points.map(p => p.join(',')).join(' '), class:'edge'};
+        if (['open', 'triangle', 'diamond'].includes(edge.head)) attrs['marker-end'] = `url(#${edge.head})`;
+        if (edge.kind === 'dependency' || edge.kind === 'implements') attrs['stroke-dasharray'] = '6 4';
+        node('polyline', attrs, svg);
+      }
+    }
+    for (const item of scene.classes || []) {
+      if (!item.rect) continue;
+      const r = item.rect, group = node('g', {tabindex:0, role:'button', 'aria-label':item.name || item.id}, svg);
+      node('rect', {x:r.x, y:r.y, width:r.w, height:r.h, rx:3, class:'class'}, group);
+      let y = r.y + 20;
+      for (const line of item.lines || []) {
+        if (line.kind === 'rule') { node('line', {x1:r.x, x2:r.x+r.w, y1:y-5, y2:y-5, stroke:'#a6b7c8'}, group); y += 4; }
+        else { text(group, r.x+8, y, line.text, line.kind === 'name' ? 'name' : 'member'); y += 18; }
+      }
+      group.addEventListener('click', () => select('class', item));
+      group.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); select('class', item); } });
+    }
+  }
+  async function refresh() {
+    try {
+      const response = await fetch(location.pathname + '/scene', {cache:'no-store'});
+      if (!response.ok) throw new Error('Viewer unavailable');
+      const result = await response.json();
+      if (result.version !== version) { version = result.version; render(result.scene); status.textContent = ''; document.getElementById('detail').hidden = true; }
+    } catch (_) { status.textContent = 'Connection lost'; }
+  }
+  refresh(); setInterval(refresh, 2000);
+</script>
+</body>
+</html>
