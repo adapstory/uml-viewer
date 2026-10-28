@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+mkdir -p "$root/target"
+jar --create --file "$root/target/viewer.jar" -C "$root/src" .
+printf 'Built %s\n' "$root/target/viewer.jar"
