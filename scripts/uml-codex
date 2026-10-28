@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+  printf '%s\n' 'Usage: uml-codex view [diagram.edn]' '       uml-codex ir policy.edn'
+  exit 0
+fi
+if [ "$#" -eq 0 ]; then set -- view; fi
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec clojure -Sdeps '{:deps {quil/quil {:mvn/version "4.3.1563"}}}' -M "$script_dir/codex-launcher.clj" "$@"
