@@ -4,7 +4,9 @@
   "https://raw.githubusercontent.com/unclebob/uml-viewer/f65dafe93b3cb1b4e6bb02dbe41503ed05bd9ebf/src/")
 
 (def loader (DynamicClassLoader. (RT/baseLoader)))
-(.addURL loader (URL. source-url))
+(.addURL loader (if-let [jar (System/getenv "UML_VIEWER_JAR")]
+                  (.toURL (.toURI (java.io.File. jar)))
+                  (URL. source-url)))
 
 (defn resolve-var [symbol]
   (or (requiring-resolve symbol)
