@@ -6,4 +6,8 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
 fi
 if [ "$#" -eq 0 ]; then set -- view; fi
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -f "$script_dir/../target/viewer.jar" ]; then
+  UML_VIEWER_JAR="$script_dir/../target/viewer.jar"
+  export UML_VIEWER_JAR
+fi
 exec clojure -Sdeps '{:deps {quil/quil {:mvn/version "4.3.1563"}}}' -M "$script_dir/codex-launcher.clj" "$@"
