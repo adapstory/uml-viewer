@@ -38,8 +38,8 @@
       (throw (ex-info "A viewer companion is already active or --restart was requested; refusing to replace it" {:session session :previous previous})))
     (alter-var-root args-var
       (constantly (fn
-        ([cwd] ["new-session" "-d" "-s" (session-id cwd) "-c" cwd "codex" prompt])
-        ([cwd name] ["new-session" "-d" "-s" name "-c" cwd "codex" prompt]))))
+        ([cwd] ["new-session" "-d" "-s" (session-id cwd) "-c" cwd "/bin/sh" "-c" "codex \"$1\"; result=$?; if [ $result -ne 0 ]; then printf '\\nCodex exited with status %s. Press Enter to close.\\n' \"$result\"; read ignored; fi" "codex-companion" prompt])
+        ([cwd name] ["new-session" "-d" "-s" name "-c" cwd "/bin/sh" "-c" "codex \"$1\"; result=$?; if [ $result -ne 0 ]; then printf '\\nCodex exited with status %s. Press Enter to close.\\n' \"$result\"; read ignored; fi" "codex-companion" prompt]))))
     (alter-var-root open-var
       (constantly
         (fn [cwd]
