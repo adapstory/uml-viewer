@@ -58,5 +58,7 @@
   (let [[command & args] *command-line-args*]
     (case command
       "ir" (apply (resolve-var 'uml-viewer.main.ir-generator/-main) args)
-      "view" (run-viewer args)
+      "view" (if (some #{"-h" "--help"} args)
+               (println "Usage: uml-codex view [diagram.edn] — start the viewer with a Codex companion")
+               (run-viewer args))
       (throw (ex-info "Usage: uml-codex [view [edn-file] | ir policy.edn]" {:command command})))))
