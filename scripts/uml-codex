@@ -6,7 +6,7 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
 fi
 if [ "$#" -eq 0 ]; then set -- view; fi
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if [ -f "$script_dir/../target/viewer.jar" ]; then
+if [ -z "${UML_VIEWER_JAR:-}" ] && [ -f "$script_dir/../target/viewer.jar" ]; then
   UML_VIEWER_JAR="$script_dir/../target/viewer.jar"
   export UML_VIEWER_JAR
 fi
